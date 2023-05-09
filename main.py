@@ -7,8 +7,10 @@ from nltk import pos_tag
 from sklearn.model_selection import train_test_split
 import nltk
 from nltk.corpus import stopwords
+from nltk.corpus import wordnet
 from nltk.tokenize import word_tokenize, sent_tokenize
 from nltk.stem import WordNetLemmatizer
+from nltk.stem import PorterStemmer
 
 nltk.download('punkt')
 nltk.download('averaged_perceptron_tagger')
@@ -16,31 +18,35 @@ nltk.download('stopwords')
 nltk.download('wordnet')
 
 
+
+
+
+
+
+
 def apply_lemmatization(data):
     lemmatizer = WordNetLemmatizer()
+    wordnet_map = {"N": wordnet.NOUN, "V": wordnet.VERB, "J": wordnet.ADJ, "R": wordnet.ADV}
     lemmatized_sentences = []
-    for pos_sentence in data['review']:
-        lemmatized_sentence = []
-        for word, pos in pos_sentence:
-            if pos.startswith('J'):
-                # Adjective
-                lemmatized_word = lemmatizer.lemmatize(word, pos='a')
-            elif pos.startswith('V'):
-                # Verb
-                lemmatized_word = lemmatizer.lemmatize(word, pos='v')
-            elif pos.startswith('N'):
-                # Noun
-                lemmatized_word = lemmatizer.lemmatize(word, pos='n')
-            elif pos.startswith('R'):
-                # Adverb
-                lemmatized_word = lemmatizer.lemmatize(word, pos='r')
-            else:
-                # Use default lemmatization (noun)
-                lemmatized_word = lemmatizer.lemmatize(word)
-
-            lemmatized_sentence.append(lemmatized_word)
-        lemmatized_sentences.append(lemmatized_sentence)
+    for sent in data['review']:
+        lemmatized_sent = []
+        for subsent in sent:
+            pos_text = pos_tag(subsent.split())
+            lemmatized_sent.append(" ".join([lemmatizer.lemmatize(word, wordnet_map.get(pos[0], wordnet.NOUN)) for word, pos in pos_text]))
+        lemmatized_sentences.append(lemmatized_sent)
     return lemmatized_sentences
+
+
+
+def apply_stemming(data):
+    stemmer = PorterStemmer()
+    stemming_sentences = []
+    for sent in data['review']:
+        stemmed_sent = []
+        for subsent in sent:
+            stemmed_sent.append(" ".join([stemmer.stem(word) for word in subsent.split()]))
+        stemming_sentences.append(stemmed_sent)
+    return stemming_sentences
 
 
 def sentence_tokenizing(data):
@@ -50,63 +56,37 @@ def sentence_tokenizing(data):
     return tokenized
 
 
-# def filtering_stop_words(data):
-#     stop_words = set(stopwords.words('english'))
-#     # remove specific words from the set
-#     stop_words.discard('not')
-#     stop_words.discard('no')
-#     filtered_content = []
-#     for row in data['review']:
-#         filtered_sent = []
-#         for sent in row:
-#             filtered_sentence = [word for word in sent if word.lower() not in stop_words]
-#             filtered_sent.append(filtered_sentence)
-#         filtered_content.append(filtered_sent)
-#
-#     return filtered_content
 
 
+def filtering_stop_words(data):
+    stop_words = set(stopwords.words('english'))
+    # remove specific words from the set
+    stop_words.discard('not')
+    stop_words.discard('no')
+    filtered_content = []
+    for row in data['review']:
+        filtered_sent = []
+        for sent in row:
+            filtered_sentence = [word for word in sent.split() if word.casefold() not in stop_words]
+            filtered_sent.append(' '.join(filtered_sentence))
+        filtered_content.append(filtered_sent)
 
-
-
-# def filtering_stop_words(data):
-#     stop_words = set(stopwords.words('english'))
-#     stop_words.discard('not')
-#     stop_words.discard('no')
-#     filtered_content = []
-#     for row in data['review']:
-#         sentences = sent_tokenize(row)
-#         filtered_sent = []
-#         for sent in sentences:
-#             words = word_tokenize(sent)
-#             filtered_sentence = [word for word in words if word.lower() not in stop_words]
-#             filtered_sent.append(filtered_sentence)
-#         filtered_content.append(filtered_sent)
-#     return filtered_content
-
+    return filtered_content
 
 
 
 def pos_tagging(df):
-    pos_sentences = []
-    for sentence in df['review']:
-        pos_sentence = pos_tag(sentence)
-        pos_sentences.append(pos_sentence)
-
+    pos_sentences=[]
+    for sent in df['review']:
+        tages = []
+        for subsent in sent:
+            pos_sentence = pos_tag(subsent.split())
+            tages.append(pos_sentence)
+        pos_sentences.append(tages)
     return pos_sentences
 
 
-def removing_dot_after_pos_tagging(df):
-    listbig = []
-    for sent in df['review']:
-        listy = []
-        for i in sent:
-            if i != '.':
-                listy.append(i)
 
-        listbig.append(listy)
-
-    return listbig
 
 
 def to_lowercase(data, target):
@@ -149,42 +129,49 @@ def get_data(dir):
 
     # define a set of stopwords
 
-    # def remove_punct(df, target):
-    df[target] = df[target].str.replace('[^\w\s]', '')
-    return df
 
 
-df = get_data("C:/Users/ahmed/OneDrive/Desktop/txt_sentoken")
+
+df = get_data(r"C:\Users\DELL\Downloads\review_polarity\txt_sentoken")
 
 df = pd.DataFrame(df)
 df = to_lowercase(df, 'review')
 
-df['review'] = remove_punct(df)
 
+df['review'] = remove_punct(df)
+# print(df['review'][1])
 
 # 1. tokenize our data
 df['review'] = sentence_tokenizing(df)
-
+# print(df['review'][1])
 
 # # 2. stop word removing
-# df['review'] = filtering_stop_words(df)
-# print(df['review'][50])
+df['review'] = filtering_stop_words(df)
+# print(df['review'][1])
 
-# print(df['review'][50])
 
 # # 3. pos tagging
 # df['review'] = pos_tagging(df)
-# # 4. lemmitization
-# df['review'] = apply_lemmatization(df)
-# df
-#
+# print(df['review'][0])
+
+# # 4. Stemming
+# df['review'] = apply_stemming(df)
+# print(df['review'][0])
+
+# # 5. lemmitization
+df['review'] = apply_lemmatization(df)
+# print(df['review'][1])
 
 
-# def remove_punct(df, target):
-#     df[target] = df[target].str.replace('[^\w\s]', '')
-#     return df
+
+
 
 
 # df_train, df_test = train_test_split(df, test_size=0.2)
 # X_train, Y_train = df_train["review"], df_train["sentiment"]
 # X_test, Y_test = df_test["review"], df_test["sentiment"]
+
+
+## removing all numbers in the dataset
+## asking the TA about the stemming
+## asking the TA about running the code
