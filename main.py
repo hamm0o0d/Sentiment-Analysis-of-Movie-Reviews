@@ -17,13 +17,6 @@ nltk.download('averaged_perceptron_tagger')
 nltk.download('stopwords')
 nltk.download('wordnet')
 
-
-
-
-
-
-
-
 def apply_lemmatization(data):
     lemmatizer = WordNetLemmatizer()
     wordnet_map = {"N": wordnet.NOUN, "V": wordnet.VERB, "J": wordnet.ADJ, "R": wordnet.ADV}
@@ -32,10 +25,10 @@ def apply_lemmatization(data):
         lemmatized_sent = []
         for subsent in sent:
             pos_text = pos_tag(subsent.split())
-            lemmatized_sent.append(" ".join([lemmatizer.lemmatize(word, wordnet_map.get(pos[0], wordnet.NOUN)) for word, pos in pos_text]))
+            lemmatized_sent.append(
+                " ".join([lemmatizer.lemmatize(word, wordnet_map.get(pos[0], wordnet.NOUN)) for word, pos in pos_text]))
         lemmatized_sentences.append(lemmatized_sent)
     return lemmatized_sentences
-
 
 
 def apply_stemming(data):
@@ -56,8 +49,6 @@ def sentence_tokenizing(data):
     return tokenized
 
 
-
-
 def filtering_stop_words(data):
     stop_words = set(stopwords.words('english'))
     # remove specific words from the set
@@ -74,9 +65,8 @@ def filtering_stop_words(data):
     return filtered_content
 
 
-
 def pos_tagging(df):
-    pos_sentences=[]
+    pos_sentences = []
     for sent in df['review']:
         tages = []
         for subsent in sent:
@@ -84,9 +74,6 @@ def pos_tagging(df):
             tages.append(pos_sentence)
         pos_sentences.append(tages)
     return pos_sentences
-
-
-
 
 
 def to_lowercase(data, target):
@@ -111,15 +98,65 @@ def read_data(dir):
     return X, Y
 
 
-def remove_punct(data):
-    listy = []
-    for sent in data['review']:
-        for char in string.punctuation:
-            if char != '.':
-                sent = sent.replace(char, '')
-        listy.append(sent)
+def remove_punct(df, target):
+    contractions = {
+        "ain't": "am not",
+        "aren't": "are not",
+        "can't": "cannot",
+        "couldn't": "could not",
+        "didn't": "did not",
+        "doesn't": "does not",
+        "don't": "do not",
+        "hadn't": "had not",
+        "hasn't": "has not",
+        "haven't": "have not",
+        "he'd": "he would",
+        "he'll": "he will",
+        "he's": "he is",
+        "i'd": "i would",
+        "i'll": "i will",
+        "i'm": "i am",
+        "i've": "i have",
+        "isn't": "is not",
+        "it's": "it is",
+        "let's": "let us",
+        "mustn't": "must not",
+        "shan't": "shall not",
+        "she'd": "she would",
+        "she'll": "she will",
+        "she's": "she is",
+        "shouldn't": "should not",
+        "that's": "that is",
+        "there's": "there is",
+        "they'd": "they would",
+        "they'll": "they will",
+        "they're": "they are",
+        "they've": "they have",
+        "we'd": "we would",
+        "we're": "we are",
+        "we've": "we have",
+        "weren't": "were not",
+        "what'll": "what will",
+        "what're": "what are",
+        "what's": "what is",
+        "what've": "what have",
+        "where's": "where is",
+        "who'll": "who will",
+        "who's": "who is",
+        "won't": "will not",
+        "wouldn't": "would not",
+        "you'd": "you would",
+        "you'll": "you will",
+        "you're": "you are",
+        "you've": "you have"
+    }
+    for contraction, expansion in contractions.items():
+        df[target] = df[target].str.replace(contraction, expansion)
+    for char in string.punctuation:
+        if char != '.':
+            df[target] = df[target].str.replace(char, '')
 
-    return listy
+    return df
 
 
 def get_data(dir):
@@ -130,16 +167,14 @@ def get_data(dir):
     # define a set of stopwords
 
 
+df = get_data(r"C:\Users\Karim\Desktop\txt_sentoken")
 
+# df = pd.DataFrame(df)
 
-df = get_data(r"C:\Users\DELL\Downloads\review_polarity\txt_sentoken")
-
-df = pd.DataFrame(df)
 df = to_lowercase(df, 'review')
 
-
-df['review'] = remove_punct(df)
-# print(df['review'][1])
+df = remove_punct(df, "review")
+print(df['review'][2])
 
 # 1. tokenize our data
 df['review'] = sentence_tokenizing(df)
@@ -161,10 +196,6 @@ df['review'] = filtering_stop_words(df)
 # # 5. lemmitization
 df['review'] = apply_lemmatization(df)
 # print(df['review'][1])
-
-
-
-
 
 
 # df_train, df_test = train_test_split(df, test_size=0.2)
