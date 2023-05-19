@@ -1,61 +1,81 @@
+# This is a sample Python script.
+
 import glob
 import os
 import string
-import re
+import numpy as np
+from sklearn.feature_extraction.text import TfidfVectorizer
+from nltk.stem.snowball import SnowballStemmer
+from sklearn.metrics import accuracy_score
 import pandas as pd
 from nltk import pos_tag
 from sklearn.model_selection import train_test_split
+from sklearn.svm import SVC
+from sklearn.linear_model import LogisticRegression
 import nltk
 from nltk.corpus import stopwords
 from nltk.corpus import wordnet
-from nltk.tokenize import word_tokenize, sent_tokenize
+from nltk.tokenize import sent_tokenize
 from nltk.stem import WordNetLemmatizer
 from nltk.stem import PorterStemmer
+from sklearn.naive_bayes import MultinomialNB
 
-nltk.download('punkt')
+nltk.download('punk')
 nltk.download('averaged_perceptron_tagger')
 nltk.download('stopwords')
 nltk.download('wordnet')
 
-def apply_lemmatization(data):
-    lemmatizer = WordNetLemmatizer()
+
+def apply_lemma(rev):
+    lemma = WordNetLemmatizer()
     wordnet_map = {"N": wordnet.NOUN, "V": wordnet.VERB, "J": wordnet.ADJ, "R": wordnet.ADV}
-    lemmatized_sentences = []
-    for sent in data['review']:
-        lemmatized_sent = []
-        for subsent in sent:
-            pos_text = pos_tag(subsent.split())
-            lemmatized_sent.append(
-                " ".join([lemmatizer.lemmatize(word, wordnet_map.get(pos[0], wordnet.NOUN)) for word, pos in pos_text]))
-        lemmatized_sentences.append(lemmatized_sent)
-    return lemmatized_sentences
+    lemma_sentences = []
+    for sent in rev['review']:
+        lemma_sent = []
+        for s in sent:
+            pos_text = pos_tag(s.split())
+            lemma_sent.append(
+                " ".join([lemma.lemmatize(word, wordnet_map.get(pos[0], wordnet.NOUN)) for word, pos in pos_text]))
+        lemma_sentences.append(lemma_sent)
+    return lemma_sentences
 
 
-def apply_stemming(data):
+def apply_porterstemmer(rev):
     stemmer = PorterStemmer()
     stemming_sentences = []
-    for sent in data['review']:
+    for sent in rev['review']:
         stemmed_sent = []
-        for subsent in sent:
-            stemmed_sent.append(" ".join([stemmer.stem(word) for word in subsent.split()]))
+        for s in sent:
+            stemmed_sent.append(" ".join([stemmer.stem(word) for word in s.split()]))
         stemming_sentences.append(stemmed_sent)
     return stemming_sentences
 
 
-def sentence_tokenizing(data):
+def apply_snowballstemmer(rev):
+    stemmer = SnowballStemmer(language='english')
+    stemming_sentences = []
+    for sent in rev['review']:
+        stemmed_sent = []
+        for s in sent:
+            stemmed_sent.append(" ".join([stemmer.stem(word) for word in s.split()]))
+        stemming_sentences.append(stemmed_sent)
+    return stemming_sentences
+
+
+def sentence_tokenizing(rev):
     tokenized = []
-    for sent in data['review']:
+    for sent in rev['review']:
         tokenized.append(sent_tokenize(sent))
     return tokenized
 
 
-def filtering_stop_words(data):
+def filtering_stop_words(rev):
     stop_words = set(stopwords.words('english'))
     # remove specific words from the set
     stop_words.discard('not')
     stop_words.discard('no')
     filtered_content = []
-    for row in data['review']:
+    for row in rev['review']:
         filtered_sent = []
         for sent in row:
             filtered_sentence = [word for word in sent.split() if word.casefold() not in stop_words]
@@ -65,40 +85,40 @@ def filtering_stop_words(data):
     return filtered_content
 
 
-def pos_tagging(df):
+def pos_tagging(rev):
     pos_sentences = []
-    for sent in df['review']:
-        tages = []
-        for subsent in sent:
-            pos_sentence = pos_tag(subsent.split())
-            tages.append(pos_sentence)
-        pos_sentences.append(tages)
+    for sent in rev['review']:
+        tags = []
+        for s in sent:
+            pos_sentence = pos_tag(s.split())
+            tags.append(pos_sentence)
+        pos_sentences.append(tags)
     return pos_sentences
 
 
-def to_lowercase(data, target):
-    data[target] = data[target].str.lower()
-    return data
+def to_lowercase(rev, target):
+    rev[target] = rev[target].str.lower()
+    return rev
 
 
-def read_data(dir):
-    X, Y = [], []
+def read_data(directory):
+    x, y = [], []
 
     folders = ["pos", "neg"]
     for folder in folders:
-        path = os.path.join(dir, folder, "*")
+        path = os.path.join(directory, folder, "*")
         sentiment = [1] if folder == "pos" else [0]
 
         for file in glob.glob(path, recursive=False):
             with open(file, "r") as f:
                 file_content = f.read()
-            X.append(file_content)
-            Y.append(sentiment)
+            x.append(file_content)
+            y.append(sentiment)
 
-    return X, Y
+    return x, y
 
 
-def remove_punct(df, target):
+def remove_punctuation(rev, target):
     contractions = {
         "ain't": "am not",
         "aren't": "are not",
@@ -151,58 +171,105 @@ def remove_punct(df, target):
         "you've": "you have"
     }
     for contraction, expansion in contractions.items():
-        df[target] = df[target].str.replace(contraction, expansion)
+        rev[target] = rev[target].str.replace(contraction, expansion)
     for char in string.punctuation:
         if char != '.':
-            df[target] = df[target].str.replace(char, '')
+            rev[target] = rev[target].str.replace(char, '')
 
-    return df
-
-
-def get_data(dir):
-    X, y = read_data(dir)
-    df = pd.DataFrame({"review": X, "sentiment": y})
-    return df
-
-    # define a set of stopwords
+    return rev
 
 
-df = get_data(r"C:\Users\Karim\Desktop\txt_sentoken")
+def get_data(directory):
+    x, y = read_data(directory)
+    dataframe = pd.DataFrame({"review": x, "sentiment": y})
+    dataframe = dataframe.sample(1000)
+    return dataframe
 
-# df = pd.DataFrame(df)
 
-df = to_lowercase(df, 'review')
+data = get_data(r"C:\Users\DELL\Downloads\review_polarity\txt_sentoken")
 
-df = remove_punct(df, "review")
-print(df['review'][2])
+
+data = to_lowercase(data, 'review')
+
+data = remove_punctuation(data, "review")
+# print(data['review'][0])
 
 # 1. tokenize our data
-df['review'] = sentence_tokenizing(df)
-# print(df['review'][1])
+data['review'] = sentence_tokenizing(data)
+# print("Sentences Tokenization:")
+# print(data['review'][0])
 
 # # 2. stop word removing
-df['review'] = filtering_stop_words(df)
-# print(df['review'][1])
+data['review'] = filtering_stop_words(data)
+# print(data['review'][1])
 
 
 # # 3. pos tagging
-# df['review'] = pos_tagging(df)
-# print(df['review'][0])
+# data['review'] = pos_tagging(data)
+# print(data['review'][0])
 
 # # 4. Stemming
-# df['review'] = apply_stemming(df)
-# print(df['review'][0])
+# data['review'] = apply_Porterstemmer(data)
+# # print("Stemming with Port stemmer:")
+# # print(data['review'][0])
+#
+# data['review'] = apply_snowballstemmer(data)
+# # print("Stemming with snowballstemmer:")
+# # print(data['review'][0])
 
-# # 5. lemmitization
-df['review'] = apply_lemmatization(df)
-# print(df['review'][1])
+# # 5. lemma
+data['review'] = apply_lemma(data)
+# print("Stemming with lemma:")
+# print(data['review'][0])
+
+# TFIDF feature generation for a maximum of 5000 features
+review = data['review'].values.tolist()
+flat_list = [string for sublist in review for string in sublist]
+tfidf_vect = TfidfVectorizer(analyzer='word', token_pattern=r'\w{1,}', max_features=5000)
+X = tfidf_vect.fit_transform(flat_list)
+
+# # Splitting data into train and validation
+x_train, x_valid, y_train, y_valid = train_test_split(X, data['sentiment'], test_size=0.3, random_state=110)
 
 
-# df_train, df_test = train_test_split(df, test_size=0.2)
-# X_train, Y_train = df_train["review"], df_train["sentiment"]
-# X_test, Y_test = df_test["review"], df_test["sentiment"]
+# # Naive Bayes training
+
+MultinomialNB_module = MultinomialNB(alpha=0.2)
+MultinomialNB_module.fit(x_train, y_train)
+
+x_train_prediction = MultinomialNB_module.predict(x_train)
+training_data_accuracy = accuracy_score(x_train_prediction, y_train)
+
+print('Accuracy on training data : ', training_data_accuracy)
+
+x_test_prediction = MultinomialNB_module.predict(x_valid)
+test_data_accuracy = accuracy_score(x_test_prediction, y_valid)
+
+print('Accuracy on test data : ', test_data_accuracy)
+
+# #SVM Classifier on Word Level TF IDF Vectors
+svc_module = SVC(kernel='linear', random_state=50)
+svc_module.fit(x_train, y_train)
+
+x_train_prediction = svc_module.predict(x_train)
+training_data_accuracy = accuracy_score(x_train_prediction, y_train)
+
+print('Accuracy on training data : ', training_data_accuracy)
+
+x_test_prediction = svc_module.predict(x_valid)
+test_data_accuracy = accuracy_score(x_test_prediction, y_valid)
+
+print('Accuracy on test data : ', test_data_accuracy)
 
 
-## removing all numbers in the dataset
-## asking the TA about the stemming
-## asking the TA about running the code
+# #LogisticRegression on Word Level TF IDF Vectors
+logistic_model = LogisticRegression(C=2, random_state=11)
+logistic_model.fit(x_train, y_train)
+
+Train_prediction = logistic_model.predict(x_valid)
+print('logistic Regression accuracy =', accuracy_score(Train_prediction, y_train))
+
+ytest_prediction = logistic_model.predict(x_valid)
+print('logistic Regression accuracy =', accuracy_score(ytest_prediction, y_valid))
+
+
