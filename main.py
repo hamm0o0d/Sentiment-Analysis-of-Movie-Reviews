@@ -6,67 +6,62 @@ import string
 import numpy as np
 from sklearn.feature_extraction.text import TfidfVectorizer
 from nltk.stem.snowball import SnowballStemmer
-from sklearn.metrics import accuracy_score
+from sklearn.metrics import accuracy_score, classification_report
 import pandas as pd
 from nltk import pos_tag
 from sklearn.model_selection import train_test_split
-from sklearn.svm import SVC
+from sklearn.svm import LinearSVC,SVC
 from sklearn.linear_model import LogisticRegression
 import nltk
 from nltk.corpus import stopwords
 from nltk.corpus import wordnet
-from nltk.tokenize import sent_tokenize
+from nltk.tokenize import word_tokenize
 from nltk.stem import WordNetLemmatizer
 from nltk.stem import PorterStemmer
 from sklearn.naive_bayes import MultinomialNB
 
-nltk.download('punk')
+nltk.download('punkt')
 nltk.download('averaged_perceptron_tagger')
 nltk.download('stopwords')
 nltk.download('wordnet')
+
+# Lemmatization function
 
 
 def apply_lemma(rev):
     lemma = WordNetLemmatizer()
     wordnet_map = {"N": wordnet.NOUN, "V": wordnet.VERB, "J": wordnet.ADJ, "R": wordnet.ADV}
-    lemma_sentences = []
-    for sent in rev['review']:
-        lemma_sent = []
-        for s in sent:
-            pos_text = pos_tag(s.split())
-            lemma_sent.append(
-                " ".join([lemma.lemmatize(word, wordnet_map.get(pos[0], wordnet.NOUN)) for word, pos in pos_text]))
-        lemma_sentences.append(lemma_sent)
-    return lemma_sentences
+    lemma_reviews = []
+    for row in rev['review']:
+        tokens = word_tokenize(row)
+        pos_text = pos_tag(tokens)
+        lemma_reviews.append(" ".join([lemma.lemmatize(word, wordnet_map.get(pos[0], wordnet.NOUN)) for word, pos in pos_text]))
+    return lemma_reviews
+
+
+# Port-stemming function
 
 
 def apply_porterstemmer(rev):
     stemmer = PorterStemmer()
-    stemming_sentences = []
-    for sent in rev['review']:
-        stemmed_sent = []
-        for s in sent:
-            stemmed_sent.append(" ".join([stemmer.stem(word) for word in s.split()]))
-        stemming_sentences.append(stemmed_sent)
-    return stemming_sentences
+    stemming_reviews = []
+    for row in rev['review']:
+        tokens = word_tokenize(row)
+        stemming_reviews.append(" ".join([stemmer.stem(word) for word in tokens]))
+    return stemming_reviews
+
+# Snowball-Stemming function
 
 
 def apply_snowballstemmer(rev):
     stemmer = SnowballStemmer(language='english')
-    stemming_sentences = []
-    for sent in rev['review']:
-        stemmed_sent = []
-        for s in sent:
-            stemmed_sent.append(" ".join([stemmer.stem(word) for word in s.split()]))
-        stemming_sentences.append(stemmed_sent)
-    return stemming_sentences
+    stemming_reviews = []
+    for row in rev['review']:
+        tokens = word_tokenize(row)
+        stemming_reviews.append(" ".join([stemmer.stem(word) for word in tokens]))
+    return stemming_reviews
 
-
-def sentence_tokenizing(rev):
-    tokenized = []
-    for sent in rev['review']:
-        tokenized.append(sent_tokenize(sent))
-    return tokenized
+# Removing all the stop_words
 
 
 def filtering_stop_words(rev):
@@ -74,31 +69,32 @@ def filtering_stop_words(rev):
     # remove specific words from the set
     stop_words.discard('not')
     stop_words.discard('no')
-    filtered_content = []
+    filtered_reviews = []
     for row in rev['review']:
-        filtered_sent = []
-        for sent in row:
-            filtered_sentence = [word for word in sent.split() if word.casefold() not in stop_words]
-            filtered_sent.append(' '.join(filtered_sentence))
-        filtered_content.append(filtered_sent)
+        tokens = word_tokenize(row)
+        filtered_sentence = [word for word in tokens if word.casefold() not in stop_words]
+        filtered_reviews.append(' '.join(filtered_sentence))
+    return filtered_reviews
 
-    return filtered_content
+# find the pos-tag for each word in reviews
 
 
 def pos_tagging(rev):
-    pos_sentences = []
-    for sent in rev['review']:
-        tags = []
-        for s in sent:
-            pos_sentence = pos_tag(s.split())
-            tags.append(pos_sentence)
-        pos_sentences.append(tags)
-    return pos_sentences
+    pos_reviews = []
+    for row in rev['review']:
+        tokens = word_tokenize(row)
+        pos_rev = pos_tag(tokens)
+        pos_reviews.append(pos_rev)
+    return pos_reviews
+
+# convert any apper-case to lower-case in all reviews
 
 
 def to_lowercase(rev, target):
     rev[target] = rev[target].str.lower()
     return rev
+
+# read the reviews ,and it's sentiment from files in the poss and neg folders
 
 
 def read_data(directory):
@@ -107,15 +103,17 @@ def read_data(directory):
     folders = ["pos", "neg"]
     for folder in folders:
         path = os.path.join(directory, folder, "*")
-        sentiment = [1] if folder == "pos" else [0]
+        sentiment = 1 if folder == "pos" else 0
 
         for file in glob.glob(path, recursive=False):
             with open(file, "r") as f:
-                file_content = f.read()
+                file_content = f.read().strip()
             x.append(file_content)
             y.append(sentiment)
 
     return x, y
+
+# Cleaning and remove all the punctuation from the reviews
 
 
 def remove_punctuation(rev, target):
@@ -178,98 +176,99 @@ def remove_punctuation(rev, target):
 
     return rev
 
+# receive the reviews and it's sentiment as a dataframe
+
 
 def get_data(directory):
     x, y = read_data(directory)
     dataframe = pd.DataFrame({"review": x, "sentiment": y})
-    dataframe = dataframe.sample(1000)
     return dataframe
 
 
 data = get_data(r"C:\Users\DELL\Downloads\review_polarity\txt_sentoken")
 
-
+# Apply  Preprocessing
 data = to_lowercase(data, 'review')
 
 data = remove_punctuation(data, "review")
 # print(data['review'][0])
 
-# 1. tokenize our data
-data['review'] = sentence_tokenizing(data)
-# print("Sentences Tokenization:")
+# # 1. stop word removing
+data['review'] = filtering_stop_words(data)
 # print(data['review'][0])
 
-# # 2. stop word removing
-data['review'] = filtering_stop_words(data)
-# print(data['review'][1])
 
-
-# # 3. pos tagging
+# # 2. pos tagging
 # data['review'] = pos_tagging(data)
 # print(data['review'][0])
 
-# # 4. Stemming
-# data['review'] = apply_Porterstemmer(data)
-# # print("Stemming with Port stemmer:")
-# # print(data['review'][0])
-#
-# data['review'] = apply_snowballstemmer(data)
-# # print("Stemming with snowballstemmer:")
-# # print(data['review'][0])
-
-# # 5. lemma
-data['review'] = apply_lemma(data)
-# print("Stemming with lemma:")
+# # 3. Stemming
+# data['review'] = apply_porterstemmer(data)
 # print(data['review'][0])
 
-# TFIDF feature generation for a maximum of 5000 features
-review = data['review'].values.tolist()
-flat_list = [string for sublist in review for string in sublist]
-tfidf_vect = TfidfVectorizer(analyzer='word', token_pattern=r'\w{1,}', max_features=5000)
-X = tfidf_vect.fit_transform(flat_list)
+# data['review'] = apply_snowballstemmer(data)
+# print(data['review'][0])
 
-# # Splitting data into train and validation
-x_train, x_valid, y_train, y_valid = train_test_split(X, data['sentiment'], test_size=0.3, random_state=110)
+# # 4. lemma
+data['review'] = apply_lemma(data)
+# print(data['review'][0])
 
 
-# # Naive Bayes training
+# # TFIDF feature generation for a maximum of 1000 features
+reviews = data["review"]
+sentiments = data["sentiment"]
+tfidf = TfidfVectorizer(max_features=1000)
+X = tfidf.fit_transform(reviews)
 
+
+# # # Splitting data into train and validation data
+x_train, x_test, y_train, y_test = train_test_split(X, sentiments, test_size=0.2, random_state=110)
+
+# Apply three of classification models (Naive Bayes,SVC,logistic regression)
+# # # Naive Bayes Classifier on Word Level TF IDF Vectors
 MultinomialNB_module = MultinomialNB(alpha=0.2)
 MultinomialNB_module.fit(x_train, y_train)
 
-x_train_prediction = MultinomialNB_module.predict(x_train)
-training_data_accuracy = accuracy_score(x_train_prediction, y_train)
+Train_prediction = MultinomialNB_module.predict(x_train)
+print('Naive Bayes accuracy of training data : ', accuracy_score(Train_prediction, y_train))
 
-print('Accuracy on training data : ', training_data_accuracy)
+Test_prediction = MultinomialNB_module.predict(x_test)
+print('Naive Bayes accuracy of testing data : ', accuracy_score(Test_prediction, y_test))
+print(classification_report(y_test, Test_prediction))
 
-x_test_prediction = MultinomialNB_module.predict(x_valid)
-test_data_accuracy = accuracy_score(x_test_prediction, y_valid)
 
-print('Accuracy on test data : ', test_data_accuracy)
-
-# #SVM Classifier on Word Level TF IDF Vectors
-svc_module = SVC(kernel='linear', random_state=50)
+# # #SVM Classifier on Word Level TF IDF Vectors
+svc_module = SVC(kernel='linear')
 svc_module.fit(x_train, y_train)
 
-x_train_prediction = svc_module.predict(x_train)
-training_data_accuracy = accuracy_score(x_train_prediction, y_train)
+Train_prediction = svc_module.predict(x_train)
+print('SVC accuracy of training data : ', accuracy_score(Train_prediction, y_train))
 
-print('Accuracy on training data : ', training_data_accuracy)
-
-x_test_prediction = svc_module.predict(x_valid)
-test_data_accuracy = accuracy_score(x_test_prediction, y_valid)
-
-print('Accuracy on test data : ', test_data_accuracy)
+Test_prediction = svc_module.predict(x_test)
+print('SVC accuracy of testing data  : ', accuracy_score(y_test, Test_prediction))
+print(classification_report(y_test, Test_prediction))
 
 
-# #LogisticRegression on Word Level TF IDF Vectors
-logistic_model = LogisticRegression(C=2, random_state=11)
+# # #LogisticRegression Model on Word Level TF IDF Vectors
+logistic_model = LogisticRegression(C=2)
 logistic_model.fit(x_train, y_train)
 
-Train_prediction = logistic_model.predict(x_valid)
-print('logistic Regression accuracy =', accuracy_score(Train_prediction, y_train))
+Train_prediction = logistic_model.predict(x_train)
+print('logistic Regression accuracy of training data=', accuracy_score(Train_prediction, y_train))
 
-ytest_prediction = logistic_model.predict(x_valid)
-print('logistic Regression accuracy =', accuracy_score(ytest_prediction, y_valid))
+Test_prediction = logistic_model.predict(x_test)
+print('logistic Regression accuracy of testing data=', accuracy_score(Test_prediction, y_test))
+print(classification_report(y_test, Test_prediction))
+
+# This is an example of negative and possitive reviews and the model try to predict if it is a possitive or negative
+x_example = 'this movie is really amazing and wonderful movie that i have ever seen in my life '
+y_example = 'i hate this movie so much , it is a boring movie and so disgusting and i did not complete it'
+
+vec = tfidf.transform([y_example])
+result = svc_module.predict(vec)
+if result == 1:
+    print("the sentiment prediction of this review is: Poss")
+else:
+    print("the sentiment prediction of this review is: Neg")
 
 
