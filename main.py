@@ -6,11 +6,11 @@ import string
 import numpy as np
 from sklearn.feature_extraction.text import TfidfVectorizer
 from nltk.stem.snowball import SnowballStemmer
-from sklearn.metrics import accuracy_score, classification_report
+from sklearn.metrics import accuracy_score, roc_auc_score
 import pandas as pd
 from nltk import pos_tag
 from sklearn.model_selection import train_test_split
-from sklearn.svm import LinearSVC,SVC
+from sklearn.svm import SVC
 from sklearn.linear_model import LogisticRegression
 import nltk
 from nltk.corpus import stopwords
@@ -19,6 +19,9 @@ from nltk.tokenize import word_tokenize
 from nltk.stem import WordNetLemmatizer
 from nltk.stem import PorterStemmer
 from sklearn.naive_bayes import MultinomialNB
+import matplotlib.pyplot as plt
+from sklearn.metrics import confusion_matrix, roc_curve, classification_report
+
 
 nltk.download('punkt')
 nltk.download('averaged_perceptron_tagger')
@@ -229,36 +232,101 @@ x_train, x_test, y_train, y_test = train_test_split(X, sentiments, test_size=0.2
 MultinomialNB_module = MultinomialNB(alpha=0.2)
 MultinomialNB_module.fit(x_train, y_train)
 
-Train_prediction = MultinomialNB_module.predict(x_train)
-print('Naive Bayes accuracy of training data : ', accuracy_score(Train_prediction, y_train))
+Naive_Train_prediction = MultinomialNB_module.predict(x_train)
+print('Naive Bayes accuracy of training data : ', accuracy_score(Naive_Train_prediction, y_train))
 
-Test_prediction = MultinomialNB_module.predict(x_test)
-print('Naive Bayes accuracy of testing data : ', accuracy_score(Test_prediction, y_test))
-print(classification_report(y_test, Test_prediction))
+Naive_Test_prediction = MultinomialNB_module.predict(x_test)
+print('Naive Bayes accuracy of testing data : ', accuracy_score(Naive_Test_prediction, y_test))
+# print(classification_report(y_test, Test_prediction))
 
 
 # # #SVM Classifier on Word Level TF IDF Vectors
 svc_module = SVC(kernel='linear')
 svc_module.fit(x_train, y_train)
 
-Train_prediction = svc_module.predict(x_train)
-print('SVC accuracy of training data : ', accuracy_score(Train_prediction, y_train))
+SVC_Train_prediction = svc_module.predict(x_train)
+print('SVC accuracy of training data : ', accuracy_score(SVC_Train_prediction, y_train))
 
-Test_prediction = svc_module.predict(x_test)
-print('SVC accuracy of testing data  : ', accuracy_score(y_test, Test_prediction))
-print(classification_report(y_test, Test_prediction))
+SVC_Test_prediction = svc_module.predict(x_test)
+print('SVC accuracy of testing data  : ', accuracy_score(y_test, SVC_Test_prediction))
+# print(classification_report(y_test, Test_prediction))
 
 
 # # #LogisticRegression Model on Word Level TF IDF Vectors
 logistic_model = LogisticRegression(C=2)
 logistic_model.fit(x_train, y_train)
 
-Train_prediction = logistic_model.predict(x_train)
-print('logistic Regression accuracy of training data=', accuracy_score(Train_prediction, y_train))
+Logistic_Train_prediction = logistic_model.predict(x_train)
+print('logistic Regression accuracy of training data=', accuracy_score(Logistic_Train_prediction, y_train))
 
-Test_prediction = logistic_model.predict(x_test)
-print('logistic Regression accuracy of testing data=', accuracy_score(Test_prediction, y_test))
-print(classification_report(y_test, Test_prediction))
+Logistic_Test_prediction = logistic_model.predict(x_test)
+print('logistic Regression accuracy of testing data=', accuracy_score(Logistic_Test_prediction, y_test))
+# print(classification_report(y_test, Test_prediction))
+
+
+# Result Visualization
+# Plot bar chart
+# Define the names of the models and their corresponding accuracy scores
+naive = accuracy_score(Naive_Test_prediction, y_test)
+svc = accuracy_score(y_test, SVC_Test_prediction)
+logistic = accuracy_score(Logistic_Test_prediction, y_test)
+model_names = ["Naive Bayes", "SVM", "Logistic Regression"]
+accuracy_scores = [naive, svc, logistic]
+
+# Create a bar chart for the accuracy scores
+plt.bar(model_names, accuracy_scores)
+plt.title("Classification Accuracy")
+plt.xlabel("Model")
+plt.ylabel("Accuracy")
+plt.ylim(0.0, 1.0)
+plt.show()
+# Plot confusion matrix for each model
+models = [("Naive Bayes", MultinomialNB_module),
+          ("SVC", svc_module),
+          ("Logistic Regression", logistic_model)]
+
+for name, model in models:
+    predictions = model.predict(x_test)
+    cm = confusion_matrix(y_test, predictions)
+    plt.imshow(cm, interpolation='nearest', cmap='Blues')
+    plt.title(f"{name} Confusion Matrix")
+    plt.colorbar()
+    tick_marks = np.arange(len(["Negative", "Positive"]))
+    plt.xticks(tick_marks, ["Negative", "Positive"])
+    plt.yticks(tick_marks, ["Negative", "Positive"])
+    plt.tight_layout()
+    plt.ylabel('True label')
+    plt.xlabel('Predicted label')
+    plt.show()
+
+# Plot ROC curve for each model
+models = [("Naive Bayes", MultinomialNB_module),
+          ("SVC", svc_module),
+          ("Logistic Regression", logistic_model)]
+
+for name, model in models:
+    if name == "Naive Bayes":
+        y_scores = model.predict_proba(x_test)[:, 1] # Use probability of positive class as score
+    else:
+        y_scores = model.predict(x_test)
+    fpr, tpr, thresholds = roc_curve(y_test, y_scores)
+    auc_score = roc_auc_score(y_test, y_scores)
+    plt.plot(fpr, tpr, label=name + f" (AUC={auc_score:.2f})")
+
+plt.plot([0, 1], [0, 1], 'k--', label='Random Guessing')
+plt.xlabel('False Positive Rate')
+plt.ylabel('True Positive Rate')
+plt.title('ROC Curve')
+plt.legend()
+plt.show()
+
+# Generate classification report for each model
+for name, model in models:
+    predictions = model.predict(x_test)
+    report = classification_report(y_test, predictions, output_dict=True)
+    report_df = pd.DataFrame(report).transpose()
+    print(f"{name} Classification Report:\n{report_df}\n")
+
 
 # This is an example of negative and possitive reviews and the model try to predict if it is a possitive or negative
 x_example = 'this movie is really amazing and wonderful movie that i have ever seen in my life '
