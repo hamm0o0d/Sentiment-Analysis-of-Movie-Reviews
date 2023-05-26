@@ -13,3 +13,6 @@ The project provides a PyCharm project that details the process of data preproce
 This project is an excellent resource for those interested in natural language processing and machine learning, specifically sentiment analysis.
 
 Keywords: Sentiment analysis, Natural language processing, Machine learning, Python, NLTK, Scikit-Learn, Text classification, PyCharm.
+
+### Deployment:
+https://hamm0o0d-sentiment-analysis-of-movie-reviews-deployment-wmc7nt.streamlit.app/
