@@ -1,5 +1,5 @@
 # This is a sample Python script.
-
+import pickle
 import glob
 import os
 import string
@@ -30,7 +30,6 @@ nltk.download('wordnet')
 
 # Lemmatization function
 
-
 def apply_lemma(rev):
     lemma = WordNetLemmatizer()
     wordnet_map = {"N": wordnet.NOUN, "V": wordnet.VERB, "J": wordnet.ADJ, "R": wordnet.ADV}
@@ -44,7 +43,6 @@ def apply_lemma(rev):
 
 # Port-stemming function
 
-
 def apply_porterstemmer(rev):
     stemmer = PorterStemmer()
     stemming_reviews = []
@@ -55,7 +53,6 @@ def apply_porterstemmer(rev):
 
 # Snowball-Stemming function
 
-
 def apply_snowballstemmer(rev):
     stemmer = SnowballStemmer(language='english')
     stemming_reviews = []
@@ -65,7 +62,6 @@ def apply_snowballstemmer(rev):
     return stemming_reviews
 
 # Removing all the stop_words
-
 
 def filtering_stop_words(rev):
     stop_words = set(stopwords.words('english'))
@@ -81,7 +77,6 @@ def filtering_stop_words(rev):
 
 # find the pos-tag for each word in reviews
 
-
 def pos_tagging(rev):
     pos_reviews = []
     for row in rev['review']:
@@ -92,13 +87,11 @@ def pos_tagging(rev):
 
 # convert any apper-case to lower-case in all reviews
 
-
 def to_lowercase(rev, target):
     rev[target] = rev[target].str.lower()
     return rev
 
 # read the reviews ,and it's sentiment from files in the poss and neg folders
-
 
 def read_data(directory):
     x, y = [], []
@@ -117,7 +110,6 @@ def read_data(directory):
     return x, y
 
 # Cleaning and remove all the punctuation from the reviews
-
 
 def remove_punctuation(rev, target):
     contractions = {
@@ -181,14 +173,12 @@ def remove_punctuation(rev, target):
 
 # receive the reviews and it's sentiment as a dataframe
 
-
 def get_data(directory):
     x, y = read_data(directory)
     dataframe = pd.DataFrame({"review": x, "sentiment": y})
     return dataframe
 
-
-data = get_data(r"C:\Users\DELL\Downloads\review_polarity\txt_sentoken")
+data = get_data(r"C:\Users\ahmed\OneDrive\Desktop\txt_sentoken")
 
 # Apply  Preprocessing
 data = to_lowercase(data, 'review')
@@ -212,17 +202,19 @@ data['review'] = filtering_stop_words(data)
 # data['review'] = apply_snowballstemmer(data)
 # print(data['review'][0])
 
-# # 4. lemma
+# # 4. lemma and pos-tagging
 data['review'] = apply_lemma(data)
 # print(data['review'][0])
-
 
 # # TFIDF feature generation for a maximum of 1000 features
 reviews = data["review"]
 sentiments = data["sentiment"]
-tfidf = TfidfVectorizer(max_features=1000)
+tfidf = TfidfVectorizer()#max_features=1000
 X = tfidf.fit_transform(reviews)
 
+# saving tfidf
+with open('tfidf.pkl','wb') as f:
+    pickle.dump(tfidf,f)
 
 # # # Splitting data into train and validation data
 x_train, x_test, y_train, y_test = train_test_split(X, sentiments, test_size=0.2, random_state=110)
@@ -231,6 +223,7 @@ x_train, x_test, y_train, y_test = train_test_split(X, sentiments, test_size=0.2
 # # # Naive Bayes Classifier on Word Level TF IDF Vectors
 MultinomialNB_module = MultinomialNB(alpha=0.2)
 MultinomialNB_module.fit(x_train, y_train)
+
 
 Naive_Train_prediction = MultinomialNB_module.predict(x_train)
 print('Naive Bayes accuracy of training data : ', accuracy_score(Naive_Train_prediction, y_train))
@@ -262,6 +255,16 @@ print('logistic Regression accuracy of training data=', accuracy_score(Logistic_
 Logistic_Test_prediction = logistic_model.predict(x_test)
 print('logistic Regression accuracy of testing data=', accuracy_score(Logistic_Test_prediction, y_test))
 # print(classification_report(y_test, Test_prediction))
+
+# saving models:
+with open('logistic.pkl','wb') as f:
+    pickle.dump(logistic_model,f)
+
+with open('naive_bayes.pkl', 'wb') as f:
+        pickle.dump(MultinomialNB_module, f)
+
+with open('svm.pkl', 'wb') as f:
+            pickle.dump(svc_module, f)
 
 
 # Result Visualization
@@ -328,7 +331,7 @@ for name, model in models:
     print(f"{name} Classification Report:\n{report_df}\n")
 
 
-# This is an example of negative and possitive reviews and the model try to predict if it is a possitive or negative
+# This is an example of negative and positive reviews and the model try to predict if it is a positive or negative
 x_example = 'this movie is really amazing and wonderful movie that i have ever seen in my life '
 y_example = 'i hate this movie so much , it is a boring movie and so disgusting and i did not complete it'
 
@@ -338,5 +341,4 @@ if result == 1:
     print("the sentiment prediction of this review is: Poss")
 else:
     print("the sentiment prediction of this review is: Neg")
-
 
